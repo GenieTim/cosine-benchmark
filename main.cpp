@@ -40,8 +40,8 @@ static double cosAbramowitz(double x) {
   // wrap x within [0, TWO_PI)
   const double a = x * TWO_PI_INVERSE;
   x -= static_cast<int>(a) * MY_2PI;
-  if (x < 0.0f) x += MY_2PI;
-  // const double x = fmodf(MY_2PI + fmodf(a, MY_2PI), MY_2PI);
+  if (x < 0.0f)
+    x += MY_2PI;
 
   // 4 pieces of hills: wrap x within [0, pi/2]
   if (x < MY_PI2)
@@ -96,6 +96,7 @@ static double cosStd(double x) { return cos(x); }
 int main(int argc, char const *argv[]) {
 
   auto angles = new double[NR_EXP];
+  auto results = new double[NR_EXP];
 
   std::uniform_real_distribution<double> unif(0, 2 * MY_2PI);
   std::default_random_engine re;
@@ -104,36 +105,26 @@ int main(int argc, char const *argv[]) {
 
   for (int i = 0; i < NR_EXP; ++i) {
     angles[i] = unif(engine);
+    results[i] = cos(angles[i]);
   }
 
   myInt64 startTime;
   myInt64 endTime;
+  double absoluteError;
 
-#define RUN_STUDY(cosineFunction) \
-  startTime = start_tsc(); \
-  for (int i = 0; i < NR_EXP; i += 4) { \
-    volatile double result0 = cosineFunction(angles[i]); \
-    volatile double result1 = cosineFunction(angles[i+1]); \
-    volatile double result2 = cosineFunction(angles[i+2]); \
-    volatile double result3 = cosineFunction(angles[i+3]); \
-  } \
-  endTime = stop_tsc(startTime); \
-  cout << endTime << ": " << #cosineFunction << endl;
+#define RUN_STUDY(cosineFunction)                                              \
+  absoluteError = 0;                                                           \
+  startTime = start_tsc();                                                     \
+  for (int i = 0; i < NR_EXP; i += 1) {                                        \
+    absoluteError += (results[i] - cosineFunction(angles[i])) / NR_EXP;        \
+  }                                                                            \
+  endTime = stop_tsc(startTime);                                               \
+  cout << endTime << ": " << absoluteError << ": " << #cosineFunction << endl;
 
   RUN_STUDY(cosStd)
   RUN_STUDY(cosKohlmeyer)
   RUN_STUDY(cosAbramowitz)
 
-
-  startTime = start_tsc();
-  for (int i = 0; i < NR_EXP; i += 4) {
-    volatile double result0 = cosAbramowitz(angles[i]);
-    volatile double result1 = cosAbramowitz(angles[i+1]);
-    volatile double result2 = cosAbramowitz(angles[i+2]);
-    volatile double result3 = cosAbramowitz(angles[i+3]);
-  } \
-  endTime = stop_tsc(startTime); \
-  cout << endTime << ": " << "cosAbramowitz" << endl;
-
+  delete[] angles;
   return 0;
 }
